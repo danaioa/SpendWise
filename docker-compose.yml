@@ -1,0 +1,53 @@
+name: student-danaioa
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: student-danaioa-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "spendwise-demo-pass-2026"
+    volumes:
+      - db_data:/var/opt/mssql
+    networks:
+      - studlab_net
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./SpendWise.API
+    container_name: student-danaioa-api
+    depends_on:
+      - db
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=student-danaioa-db,1433;Database=SpendWiseDb;User Id=sa;Password=spendwise-demo-pass-2026;TrustServerCertificate=True;"
+      Jwt__Key: "spendwise-jwt-key-2026-not-for-prod-min-32-chars-pls-replace"
+      Jwt__Issuer: "SpendWiseAPI"
+      Jwt__Audience: "SpendWiseClient"
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_URLS: "http://+:8080"
+    expose:
+      - "8080"
+    networks:
+      - studlab_net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./spendwise-client
+    container_name: student-danaioa-frontend
+    depends_on:
+      - api
+    expose:
+      - "80"
+    networks:
+      - studlab_net
+    restart: unless-stopped
+
+volumes:
+  db_data:
+
+networks:
+  studlab_net:
+    external: true
+    name: studlab_net
