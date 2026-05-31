@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { PiggyBank, Wallet, CalendarCheck } from "lucide-react";
 import axiosClient from "../api/axiosClient";
 
-
-
 type MonthlySaving = {
   id: number;
   month: number;
@@ -20,6 +18,7 @@ function SavingsPage() {
   const loadSavingsData = async () => {
     try {
       setIsLoading(true);
+      setMessage("");
 
       const dashboardResponse = await axiosClient.get("/Dashboard");
       const savingsResponse = await axiosClient.get("/MonthlySavings");
@@ -42,22 +41,6 @@ function SavingsPage() {
     return savings.reduce((sum, item) => sum + Number(item.amount), 0);
   }, [savings]);
 
-  const saveCurrentMonth = async () => {
-    try {
-      setMessage("");
-
-      await axiosClient.post("/MonthlySavings/close-month");
-
-      setMessage("Current month balance was saved successfully.");
-      await loadSavingsData();
-    } catch (error: any) {
-      console.error(error);
-      setMessage(
-        error.response?.data || "Could not save this month. It may already be saved."
-      );
-    }
-  };
-
   const formatMonth = (month: number, year: number) => {
     return new Date(year, month - 1).toLocaleDateString("en-US", {
       month: "long",
@@ -76,8 +59,8 @@ function SavingsPage() {
           <span className="savings-eyebrow">Savings history</span>
           <h1>Money saved over time</h1>
           <p>
-            Close each month and keep track of how much money remained after all
-            expenses and recurring payments.
+            Your savings are updated automatically when a new month starts, based
+            on the money left after expenses and recurring payments.
           </p>
         </div>
       </section>
@@ -110,14 +93,15 @@ function SavingsPage() {
 
       <section className="savings-action-card">
         <div>
-          <h2>Close current month</h2>
+          <h2>Automatic month closing</h2>
           <p>
-            Save the current remaining balance as this month&apos;s saved amount.
+            When a new month starts, SpendWise automatically saves the previous
+            month&apos;s remaining balance.
           </p>
         </div>
 
-        <button type="button" onClick={saveCurrentMonth}>
-          Save current month
+        <button type="button" onClick={loadSavingsData}>
+          Refresh savings
         </button>
       </section>
 
@@ -133,14 +117,17 @@ function SavingsPage() {
           {savings.length === 0 ? (
             <div className="savings-history-card">
               <h3>No savings recorded yet</h3>
-              <p>Save the current month to start building your history.</p>
+              <p>
+                Your first saved month will appear automatically after the month
+                changes.
+              </p>
             </div>
           ) : (
             savings.map((saving) => (
               <article className="savings-history-card" key={saving.id}>
                 <span>{formatMonth(saving.month, saving.year)}</span>
                 <strong>{Number(saving.amount).toFixed(0)} lei</strong>
-                <p>Saved at month close</p>
+                <p>Saved automatically at month close</p>
               </article>
             ))
           )}
