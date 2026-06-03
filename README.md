@@ -154,7 +154,7 @@ All services are deployed using Docker containers and orchestrated through Docke
 
 ### Dashboard
 
-<img width="1901" height="1025" alt="image" src="https://github.com/user-attachments/assets/c3f9f3f1-eb54-44fc-b0a4-00404cab578e" />
+<img width="1876" height="1034" alt="image" src="https://github.com/user-attachments/assets/d7df3595-39aa-480c-8b53-82d1a18dc251" />
 
 
 ### Budget Planning
@@ -164,12 +164,13 @@ All services are deployed using Docker containers and orchestrated through Docke
 
 ### Transactions
 
-<img width="1884" height="1013" alt="image" src="https://github.com/user-attachments/assets/8389ff13-04fe-4ca4-a1cc-9b03cc746c62" />
+<img width="1893" height="1019" alt="image" src="https://github.com/user-attachments/assets/dfa04c18-f8f5-4298-a5a8-894a8d9dc157" />
 
 
 ### Product Scanner
 
-<img width="1912" height="1038" alt="image" src="https://github.com/user-attachments/assets/f11bc0de-898a-453c-b7fe-0d1aff5832ce" />
+<img width="1895" height="1018" alt="image" src="https://github.com/user-attachments/assets/1acebf85-be11-40d6-be87-ba306a80e460" />
+
 
 
 ### Savings
