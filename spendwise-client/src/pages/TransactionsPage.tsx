@@ -31,8 +31,29 @@ function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recurringPayments, setRecurringPayments] = useState<RecurringPayment[]>([]);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [remainingBalance, setRemainingBalance] = useState(0);
   const [selectedDate, setSelectedDate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const getCurrentMonthRange = () => {
+    const today = new Date();
+
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    return {
+      start: firstDay,
+      end: lastDay,
+    };
+  };
+
+  const isInCurrentMonth = (dateValue: string) => {
+    const date = new Date(dateValue);
+    const { start, end } = getCurrentMonthRange();
+
+    return date >= start && date <= end;
+  };
 
   const loadData = async () => {
     try {
@@ -47,7 +68,10 @@ function TransactionsPage() {
 
       setTransactions(transactionsResponse.data);
       setRecurringPayments(recurringResponse.data);
+
       setMonthlyIncome(Number(dashboardResponse.data.monthlyIncome));
+      setTotalSpent(Number(dashboardResponse.data.totalExpenses));
+      setRemainingBalance(Number(dashboardResponse.data.remainingBalance));
     } catch (error) {
       console.error("Could not load transactions", error);
     } finally {
@@ -72,15 +96,17 @@ function TransactionsPage() {
       type: "salary",
     };
 
-    const normalRows: TransactionRow[] = transactions.map((transaction) => ({
-      id: `transaction-${transaction.id}`,
-      date: transaction.date,
-      description: transaction.description,
-      categoryName: transaction.categoryName,
-      amount: Number(transaction.amount),
-      isExpense: transaction.isExpense,
-      type: "transaction",
-    }));
+    const normalRows: TransactionRow[] = transactions
+      .filter((transaction) => selectedDate || isInCurrentMonth(transaction.date))
+      .map((transaction) => ({
+        id: `transaction-${transaction.id}`,
+        date: transaction.date,
+        description: transaction.description,
+        categoryName: transaction.categoryName,
+        amount: Number(transaction.amount),
+        isExpense: transaction.isExpense,
+        type: "transaction",
+      }));
 
     const recurringRows: TransactionRow[] = recurringPayments.map((payment) => ({
       id: `recurring-${payment.id}`,
@@ -98,8 +124,8 @@ function TransactionsPage() {
 
     const allRows =
       monthlyIncome > 0
-        ? [salaryRow, ...normalRows, ...recurringRows]
-        : [...normalRows, ...recurringRows];
+        ? [salaryRow, ...recurringRows, ...normalRows]
+        : [...recurringRows, ...normalRows];
 
     const filteredRows = selectedDate
       ? allRows.filter((row) => {
@@ -113,16 +139,6 @@ function TransactionsPage() {
     );
   }, [transactions, recurringPayments, monthlyIncome, selectedDate]);
 
-  const totalIncome = rows
-    .filter((row) => !row.isExpense)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
-
-  const totalExpenses = rows
-    .filter((row) => row.isExpense)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
-
-  const balance = totalIncome - totalExpenses;
-
   return (
     <div className="transactions-page">
       <section className="transactions-hero">
@@ -130,8 +146,8 @@ function TransactionsPage() {
           <span className="transactions-eyebrow">Money movement</span>
           <h1>Transactions</h1>
           <p>
-            View your monthly salary, transactions and recurring payments in one
-            place.
+            View your monthly salary, current month transactions and recurring
+            payments in one place.
           </p>
         </div>
       </section>
@@ -139,24 +155,31 @@ function TransactionsPage() {
       <section className="transactions-summary-grid">
         <div className="transactions-summary-card">
           <span>Income</span>
-          <strong className="success-text">+{totalIncome.toFixed(0)} lei</strong>
+          <strong className="success-text">
+            +{monthlyIncome.toFixed(0)} lei
+          </strong>
         </div>
 
         <div className="transactions-summary-card">
           <span>Expenses</span>
-          <strong className="danger-text">-{totalExpenses.toFixed(0)} lei</strong>
+          <strong className="danger-text">
+            -{totalSpent.toFixed(0)} lei
+          </strong>
         </div>
 
         <div className="transactions-summary-card">
           <span>Balance</span>
-          <strong>{balance.toFixed(0)} lei</strong>
+          <strong>{remainingBalance.toFixed(0)} lei</strong>
         </div>
       </section>
 
       <section className="transactions-toolbar">
         <div>
           <h2>Your activity</h2>
-          <p>Salary and recurring payments are included automatically.</p>
+          <p>
+            By default, only the current month is shown. Salary and recurring
+            payments are included automatically.
+          </p>
         </div>
 
         <div className="transactions-filter">
@@ -189,7 +212,7 @@ function TransactionsPage() {
         {isLoading ? (
           <p className="transactions-empty">Loading transactions...</p>
         ) : rows.length === 0 ? (
-          <p className="transactions-empty">No transactions for this date.</p>
+          <p className="transactions-empty">No transactions for this period.</p>
         ) : (
           <table className="transactions-table">
             <thead>
