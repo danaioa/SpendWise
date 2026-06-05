@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SpendWise.API.Data;
 using SpendWise.API.Models;
+using SpendWise.API.Services.Interfaces;
 using System.Security.Claims;
 
 namespace SpendWise.API.Controllers
@@ -12,14 +11,14 @@ namespace SpendWise.API.Controllers
     [Authorize]
     public class CategoriesController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICategoryService _categoryService;
         private readonly ILogger<CategoriesController> _logger;
 
         public CategoriesController(
-            ApplicationDbContext context,
+            ICategoryService categoryService,
             ILogger<CategoriesController> logger)
         {
-            _context = context;
+            _categoryService = categoryService;
             _logger = logger;
         }
 
@@ -29,16 +28,10 @@ namespace SpendWise.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            var categories = await _context.Categories
-                .Where(c => isAdmin || c.UserId == null || c.UserId == userId)
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Name,
-                    c.IsExpense,
-                    IsCustom = c.UserId != null
-                })
-                .ToListAsync();
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var categories = await _categoryService.GetAllAsync(userId, isAdmin);
 
             return Ok(categories);
         }
@@ -49,22 +42,13 @@ namespace SpendWise.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            var category = await _context.Categories
-                .Where(c => c.Id == id)
-                .Where(c => isAdmin || c.UserId == null || c.UserId == userId)
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Name,
-                    c.IsExpense,
-                    IsCustom = c.UserId != null
-                })
-                .FirstOrDefaultAsync();
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var category = await _categoryService.GetByIdAsync(id, userId, isAdmin);
 
             if (category == null)
-            {
                 return NotFound();
-            }
 
             return Ok(category);
         }
@@ -74,36 +58,17 @@ namespace SpendWise.API.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            if (string.IsNullOrWhiteSpace(category.Name))
-            {
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var createdCategory = await _categoryService.CreateAsync(category, userId);
+
+            if (createdCategory == null)
                 return BadRequest("Category name is required.");
-            }
 
-            var newCategory = new Category
-            {
-                Name = category.Name.Trim(),
-                IsExpense = category.IsExpense,
-                UserId = userId
-            };
+            _logger.LogInformation("Category was created by user {UserId}.", userId);
 
-            _context.Categories.Add(newCategory);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Category {CategoryName} was created.", newCategory.Name);
-
-            var response = new
-            {
-                newCategory.Id,
-                newCategory.Name,
-                newCategory.IsExpense,
-                IsCustom = true
-            };
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = newCategory.Id },
-                response
-            );
+            return Ok(createdCategory);
         }
 
         [HttpPut("{id}")]
@@ -112,40 +77,23 @@ namespace SpendWise.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            var existingCategory = await _context.Categories
-                .FirstOrDefaultAsync(c =>
-                    c.Id == id &&
-                    (isAdmin || c.UserId == userId));
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-            if (existingCategory == null)
-            {
+            var result = await _categoryService.UpdateAsync(id, category, userId, isAdmin);
+
+            if (result == null)
                 return NotFound();
-            }
 
-            if (!isAdmin && existingCategory.UserId == null)
-            {
+            if (result is string message && message == "FORBID")
                 return Forbid();
-            }
 
-            if (string.IsNullOrWhiteSpace(category.Name))
-            {
+            if (result is string badRequest && badRequest == "BAD_REQUEST")
                 return BadRequest("Category name is required.");
-            }
-
-            existingCategory.Name = category.Name.Trim();
-            existingCategory.IsExpense = category.IsExpense;
-
-            await _context.SaveChangesAsync();
 
             _logger.LogInformation("Category {CategoryId} was updated.", id);
 
-            return Ok(new
-            {
-                existingCategory.Id,
-                existingCategory.Name,
-                existingCategory.IsExpense,
-                IsCustom = existingCategory.UserId != null
-            });
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]
@@ -154,23 +102,16 @@ namespace SpendWise.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            var category = await _context.Categories
-                .FirstOrDefaultAsync(c =>
-                    c.Id == id &&
-                    (isAdmin || c.UserId == userId));
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-            if (category == null)
-            {
+            var result = await _categoryService.DeleteAsync(id, userId, isAdmin);
+
+            if (result == null)
                 return NotFound();
-            }
 
-            if (!isAdmin && category.UserId == null)
-            {
+            if (result == false)
                 return Forbid();
-            }
-
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
 
             _logger.LogInformation("Category {CategoryId} was deleted.", id);
 

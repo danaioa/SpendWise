@@ -38,6 +38,8 @@ namespace SpendWise.API.Controllers
             return Ok(users);
         }
 
+        
+
         [HttpGet("transactions")]
         public async Task<IActionResult> GetAllTransactions()
         {
